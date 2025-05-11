@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from .models.user import Base
-from config.database import engine
+from db.database import engine
 
 app = FastAPI(title="Microservicio de Usuarios")
 
