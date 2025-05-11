@@ -6,10 +6,11 @@ class User(Base):
     __tablename__ = "users"
     
     id = Column(Integer, primary_key=True)
-    email = Column(String(100), unique=True)
-    nombre = Column(String(50))
-    apellido = Column(String(50))
-    hashed_password = Column(String(200))
+    email = Column(String(100), unique=True, nullable=False)
+    nombre = Column(String(50), nullable=False)        
+    apellido = Column(String(50), nullable=False)      
+    hashed_password = Column(String(200), nullable=False)
+    
     
     # Relación muchos-a-muchos con roles (tabla intermedia automática)
     roles = relationship("Role", secondary="user_roles")
