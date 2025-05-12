@@ -33,3 +33,7 @@ class UserResponse(UserBase):
                 else str(self.role)
             )
         }
+    
+class LoginRequest(BaseModel):
+    username: str
+    password: str
