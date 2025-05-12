@@ -10,7 +10,3 @@ class TokenData(BaseModel):
     nombre: Optional[str] = None
     apellido: Optional[str] = None
     role: Optional[str] = None  
-
-class LoginRequest(BaseModel):
-    email: str
-    password: str
