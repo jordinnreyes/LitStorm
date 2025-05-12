@@ -2,7 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from ..db.database import get_db
-from ..schemas.auth import Token, UserCreate
+from ..schemas.auth import Token
+from ..schemas.user import UserCreate
 from ..services.auth_service import register_user, authenticate_user
 from ..utils.security import create_access_token
 
@@ -19,7 +20,8 @@ async def register(
             "message": "Usuario registrado",
             "user_id": user.id,
             "nombre": user.nombre,
-            "apellido": user.apellido
+            "apellido": user.apellido,
+            "role": user.role_id
         }
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -39,8 +41,8 @@ async def login(
     access_token = create_access_token(
         data={
             "sub": user.email,
-            "nombre": user.nombre,      
-            "roles": [role.name for role in user.roles]
+            "nombre": user.nombre,
+            "role": user.role_id
         }
     )
     return {"access_token": access_token, "token_type": "bearer"}

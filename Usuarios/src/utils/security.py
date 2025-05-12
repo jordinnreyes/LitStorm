@@ -5,8 +5,8 @@ from jose.exceptions import ExpiredSignatureError, JWTError
 from ..config.settings import settings
 from fastapi import HTTPException, status
 
-SECRET_KEY = settings("SECRET_KEY")
-ALGORITHM = settings("ALGORITHM")
+SECRET_KEY = settings.SECRET_KEY
+ALGORITHM = settings.ALGORITHM
 
 
 #Token
@@ -15,6 +15,7 @@ pwd_context = CryptContext(
     deprecated="auto",
     bcrypt__rounds=12  
 )
+
 def decode_token(token: str) -> dict:
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
@@ -34,11 +35,9 @@ def decode_token(token: str) -> dict:
 
 def create_access_token(data: dict):
     to_encode = data.copy()
-    expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    expire = datetime.now() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
-
-
 
 def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)
