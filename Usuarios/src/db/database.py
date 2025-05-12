@@ -1,8 +1,8 @@
 import os
 from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from ..config.settings import settings
+from models.base import Base
 
 DATABASE_URL = settings.DATABASE_URL
 
@@ -28,11 +28,12 @@ SessionLocal = sessionmaker(
     expire_on_commit=False 
 )
 
-Base = declarative_base()
-
 def get_db():
     db = SessionLocal()
     try:
         yield db
     finally:
         db.close()
+
+def create_tables(engine):
+    Base.metadata.create_all(bind=engine)
