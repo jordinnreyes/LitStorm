@@ -1,9 +1,9 @@
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from .db.database import engine, create_tables
+from .db.database import engine, create_tables, init_roles
 from .controllers import auth, users
 from fastapi.responses import JSONResponse
-import os
+from sqlalchemy.orm import Session
 
 # Configuración inicial de la app
 app = FastAPI(
@@ -21,11 +21,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Crear tablas en la base de datos (solo para desarrollo)
+# Crear tablas en la base de datos siempre al arrancar
 @app.on_event("startup")
 def startup_event():
-    if os.getenv("ENVIRONMENT") == "dev":
-        create_tables(engine)
+    create_tables(engine)
+    with Session(engine) as db:
+        init_roles(db)  
 
 # Incluir routers
 app.include_router(auth.router, prefix="/auth", tags=["auth"])

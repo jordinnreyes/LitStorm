@@ -2,6 +2,8 @@
 from sqlalchemy import Column, Integer, String, ForeignKey
 from sqlalchemy.orm import relationship
 from .base import Base
+from .role import Role
+
 
 class User(Base):
     __tablename__ = "users"
@@ -13,4 +15,4 @@ class User(Base):
     hashed_password = Column(String(200), nullable=False)
     role_id = Column(Integer, ForeignKey("roles.id")) 
     
-    role = relationship("Role") 
+    role = relationship(Role) 

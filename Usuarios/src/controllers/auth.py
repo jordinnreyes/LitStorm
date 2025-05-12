@@ -3,28 +3,29 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from ..db.database import get_db
 from ..schemas.auth import Token
-from ..schemas.user import UserCreate
+from ..schemas.user import UserCreate, UserResponse
 from ..services.auth_service import register_user, authenticate_user
 from ..utils.security import create_access_token
 
 router = APIRouter(tags=["auth"])
 
-@router.post("/register", status_code=status.HTTP_201_CREATED)
-async def register(
-    user_data: UserCreate,  
-    db: Session = Depends(get_db)
-):
+@router.post("/register", status_code=status.HTTP_201_CREATED, response_model=UserResponse)
+async def register(user_data: UserCreate, db: Session = Depends(get_db)):
     try:
-        user = register_user(db, user_data)
-        return {
-            "message": "Usuario registrado",
-            "user_id": user.id,
-            "nombre": user.nombre,
-            "apellido": user.apellido,
-            "role": user.role_id
-        }
+        user = register_user(db, user_data)  # Se registra el usuario
+
+        # Ahora que la relación 'role' está cargada, accedemos al nombre del rol
+        return UserResponse(
+            id=user.id,
+            email=user.email,
+            nombre=user.nombre,
+            apellido=user.apellido,
+            role=user.role.name  # Aquí accedemos al 'name' del rol, no al 'id'
+        )
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+    
+
 
 @router.post("/login", response_model=Token)
 async def login(
