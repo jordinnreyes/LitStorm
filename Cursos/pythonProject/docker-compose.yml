@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  cursos:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: api_cursos_litstorm
+    ports:
+      - "8001:8000"
+    environment:
+      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
+      - SECRET_KEY=${SECRET_KEY}
+      - PYTHONPATH=/app/src
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - backend_network
+    volumes:
+      - .:/app
+    command: >
+      sh -c "uvicorn src.main:app
+      --host 0.0.0.0
+      --port 8000
+      --reload"
+
+  db:
+    image: postgres:15-alpine
+    container_name: postgres_cursos
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_HOST_AUTH_METHOD: scram-sha-256
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - backend_network
+    ports:
+      - "5433:5432"
+
+volumes:
+  postgres_data:
+
+networks:
+  backend_network:
+    driver: bridge
