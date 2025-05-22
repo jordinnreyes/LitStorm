@@ -15,4 +15,4 @@ class User(Base):
     hashed_password = Column(String(200), nullable=False)
     role_id = Column(Integer, ForeignKey("roles.id")) 
     
-    role = relationship(Role) 
+    role = relationship(Role, back_populates="users")

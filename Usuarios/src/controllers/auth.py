@@ -6,6 +6,17 @@ from ..schemas.auth import Token
 from ..schemas.user import UserCreate, UserResponse, LoginRequest
 from ..services.auth_service import register_user, authenticate_user
 from ..utils.security import create_access_token
+from ..config.settings import settings
+from fastapi.security import OAuth2PasswordBearer
+from jose import jwt
+from ..models.role import Role
+
+
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
+
+
+SECRET_KEY = settings.SECRET_KEY
 
 router = APIRouter(tags=["auth"])
 
@@ -39,11 +50,30 @@ async def login(
             detail="Credenciales incorrectas",
         )
     
+    role = db.query(Role).filter(Role.id == user.role_id).first()
+    role_name = role.name if role else "usuario"
+    
     access_token = create_access_token(
         data={
+            "id": user.id,
             "sub": user.email,
             "nombre": user.nombre,
-            "role": user.role_id
+            "role": role_name,
         }
     )
     return {"access_token": access_token, "token_type": "bearer"}
+
+
+# En usuarios/controllers/auth.py
+
+@router.get("/validate-token")
+def validate_token(token: str = Depends(oauth2_scheme)):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+        return {
+            "id": payload.get("id"),
+            "email": payload.get("sub"),
+            "rol": payload.get("role"),
+        }
+    except Exception as e:
+        raise HTTPException(status_code=401, detail=str(e))
