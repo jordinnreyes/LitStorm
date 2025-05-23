@@ -1,0 +1,90 @@
+services:
+  usuarios:
+    build:
+      context: ./usuarios
+      dockerfile: Dockerfile
+    container_name: fastapi_usuarios
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://${USUARIOS_DB_USER}:${USUARIOS_DB_PASSWORD}@usuarios_db:5432/${USUARIOS_DB_NAME}
+      - SECRET_KEY=${SECRET_KEY}
+      - PYTHONPATH=/app/src
+    depends_on:
+      usuarios_db:
+        condition: service_healthy
+    volumes:
+      - ./usuarios:/app
+    command: >
+      sh -c "uvicorn src.app:app --host 0.0.0.0 --port 8000 --reload"
+    networks:
+      - backend_network
+
+  cursos:
+    build:
+      context: ./cursos
+      dockerfile: Dockerfile
+    container_name: fastapi_cursos
+    ports:
+      - "8001:8000"
+    environment:
+      - DATABASE_URL=postgresql://${CURSOS_DB_USER}:${CURSOS_DB_PASSWORD}@cursos_db:5432/${CURSOS_DB_NAME}
+      - USUARIOS_SERVICE_URL=http://usuarios:8000
+      - PYTHONPATH=/app/src
+    depends_on:
+      cursos_db:
+        condition: service_healthy
+    volumes:
+      - ./cursos:/app
+    command: >
+      sh -c "uvicorn src.app:app --host 0.0.0.0 --port 8000 --reload"
+    networks:
+      - backend_network
+
+  usuarios_db:
+    image: postgres:15-alpine
+    container_name: postgres_usuarios_db
+    environment:
+      POSTGRES_USER: ${USUARIOS_DB_USER}
+      POSTGRES_PASSWORD: ${USUARIOS_DB_PASSWORD}
+      POSTGRES_DB: ${USUARIOS_DB_NAME}
+      POSTGRES_HOST_AUTH_METHOD: scram-sha-256
+    volumes:
+      - usuarios_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${USUARIOS_DB_USER} -d ${USUARIOS_DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - backend_network
+
+  cursos_db:
+    image: postgres:15-alpine
+    container_name: postgres_cursos_db
+    environment:
+      POSTGRES_USER: ${CURSOS_DB_USER}
+      POSTGRES_PASSWORD: ${CURSOS_DB_PASSWORD}
+      POSTGRES_DB: ${CURSOS_DB_NAME}
+      POSTGRES_HOST_AUTH_METHOD: scram-sha-256
+    volumes:
+      - cursos_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${CURSOS_DB_USER} -d ${CURSOS_DB_NAME} && psql -U ${CURSOS_DB_USER} -d ${CURSOS_DB_NAME} -c 'SELECT 1;'"]
+      interval: 5s
+      timeout: 10s
+      retries: 10
+    networks:
+      - backend_network
+
+volumes:
+  usuarios_data:
+  cursos_data:
+
+networks:
+  backend_network:
+    driver: bridge
