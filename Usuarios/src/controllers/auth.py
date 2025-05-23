@@ -25,13 +25,13 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
     try:
         user = register_user(db, user_data)  # Se registra el usuario
 
-        # Ahora que la relación 'role' está cargada, accedemos al nombre del rol
+
         return UserResponse(
             id=user.id,
             email=user.email,
             nombre=user.nombre,
             apellido=user.apellido,
-            role=user.role.name  # Aquí accedemos al 'name' del rol, no al 'id'
+            role=user.role.name  
         )
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -64,8 +64,8 @@ async def login(
     return {"access_token": access_token, "token_type": "bearer"}
 
 
-# En usuarios/controllers/auth.py
 
+#funcion para validar el usuarios, en la api de cursos
 @router.get("/validate-token")
 def validate_token(token: str = Depends(oauth2_scheme)):
     try:
