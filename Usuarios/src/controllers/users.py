@@ -1,25 +1,28 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+
+from ..models.user import User
 from ..db.database import get_db
 from ..schemas.user import UserResponse
-from ..services.user_service import get_user_profile
-from ..utils.dependencies import requires_role
+from ..utils.dependencies import get_authenticated_user
+from ..models.role import Role
 
 router = APIRouter(prefix="/users", tags=["users"])
 
 @router.get("/me", response_model=UserResponse)
 async def read_current_user(
-    current_user: UserResponse = Depends(requires_role("alumno"))  
+    current_user: User = Depends(get_authenticated_user),
+    db: Session = Depends(get_db)
 ):
-    return current_user
+    # Obtener el nombre del rol desde la base de datos
+    role = db.query(Role).filter(Role.id == current_user.role_id).first()
+    role_name = role.name if role else "usuario"
 
-@router.get("/{user_id}", response_model=UserResponse)
-async def read_user(
-    user_id: int,
-    db: Session = Depends(get_db),
-    current_user: UserResponse = Depends(requires_role("admin"))  
-):
-    user = get_user_profile(db, user_id)
-    if not user:
-        raise HTTPException(status_code=404, detail="Usuario no encontrado")
-    return user
+    return UserResponse(
+        id=current_user.id,
+        email=current_user.email,
+        nombre=current_user.nombre,
+        apellido=current_user.apellido,
+        role=role_name
+    )
+

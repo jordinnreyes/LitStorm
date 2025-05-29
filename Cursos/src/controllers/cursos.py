@@ -20,3 +20,8 @@ def crear_curso(
 @router.get("/", response_model=list[CursoOut])
 def listar(db: Session = Depends(get_db)):
     return db.query(Course).all()
+
+@router.get("/{curso_id}/existe", response_model=bool)
+def verificar_existencia_curso(curso_id: int, db: Session = Depends(get_db)):
+    curso = db.query(Course).filter(Course.id == curso_id).first()
+    return bool(curso)

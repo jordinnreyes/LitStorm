@@ -41,6 +41,28 @@ services:
     networks:
       - backend_network
 
+  evaluaciones:
+    build:
+      context: ./evaluaciones
+      dockerfile: Dockerfile
+    container_name: fastapi_evaluaciones
+    ports:
+      - "8002:8000"
+    environment:
+      - MONGO_URI=${MONGO_URI}
+      - USUARIOS_SERVICE_URL=http://usuarios:8000
+      - CURSOS_SERVICE_URL=http://cursos:8001
+      - PYTHONPATH=/app/src
+    depends_on:
+      evaluaciones_mongo_db:
+        condition: service_healthy
+    volumes:
+      - ./evaluaciones:/app
+    command: >
+      sh -c "uvicorn src.app:app --host 0.0.0.0 --port 8000 --reload"
+    networks:
+      - backend_network
+
   usuarios_db:
     image: postgres:15-alpine
     container_name: postgres_usuarios_db
@@ -81,9 +103,26 @@ services:
     networks:
       - backend_network
 
+  evaluaciones_mongo_db:
+    image: mongo:latest
+    container_name: mongo_evaluaciones_db
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - backend_network
+    healthcheck:
+      test: ["CMD-SHELL", "echo 'db.runCommand({ ping: 1 })' | mongosh localhost:27017/test --quiet"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+
+
 volumes:
   usuarios_data:
   cursos_data:
+  mongo_data:
 
 networks:
   backend_network:
