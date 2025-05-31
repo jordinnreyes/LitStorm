@@ -14,6 +14,24 @@ def get_current_user(authorization: str = Header(...)):
         return res.json()
     except:
         raise HTTPException(status_code=500, detail="Error al conectar con servicio de usuarios")
+<<<<<<< HEAD
+
+def verificar_curso_existe(curso_id: int):
+    url = f"{CURSOS_SERVICE_URL}/cursos/{curso_id}/existe"
+    try:
+        response = requests.get(url, timeout=15)
+        response.raise_for_status()
+        existe = response.json()
+
+        if not existe:
+            raise HTTPException(status_code=404, detail="El curso no existe")
+    except requests.exceptions.HTTPError as http_err:
+        print(f"❌ Error HTTP al verificar curso: {http_err}")
+        raise HTTPException(status_code=400, detail="Error al verificar el curso")
+    except requests.exceptions.RequestException as req_err:
+        print(f"❌ Error de conexión al verificar curso: {req_err}")
+        raise HTTPException(status_code=500, detail="No se pudo contactar al servicio de cursos")
+=======
     
 
 def verificar_curso_existe(curso_id: int):
@@ -25,3 +43,4 @@ def verificar_curso_existe(curso_id: int):
             raise HTTPException(status_code=404, detail="El curso no existe")
     except Exception:
         raise HTTPException(status_code=500, detail="No se pudo verificar el curso")
+>>>>>>> 96bd197fb810fc04029f0363761fccd31aa3470a

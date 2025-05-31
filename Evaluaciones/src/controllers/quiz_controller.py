@@ -20,6 +20,10 @@ async def crear_un_quiz(quiz: QuizCreate, user=Depends(get_current_user)):
         raise HTTPException(status_code=500, detail="No se pudo crear el quiz.")
     return {"id": quiz_id}
 
+<<<<<<< HEAD
+
+=======
+>>>>>>> 96bd197fb810fc04029f0363761fccd31aa3470a
 #controller para listar los quizzes por curso
 @router.get("/activos/{curso_id}", response_model=List[QuizResumen])
 async def listar_quizzes_activos_por_curso(curso_id: str):

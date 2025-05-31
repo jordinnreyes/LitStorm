@@ -1,5 +1,9 @@
 from fastapi import APIRouter, HTTPException, Depends
+<<<<<<< HEAD
+from src.schemas.question import QuestionCreate, QuestionResponse, QuestionGenerated
+=======
 from src.schemas.question import QuestionCreate, QuestionResponse
+>>>>>>> 96bd197fb810fc04029f0363761fccd31aa3470a
 from src.services.question_service import crear_pregunta
 from fastapi import Query
 from src.services.ia_service import generar_preguntas_con_ia
@@ -25,7 +29,11 @@ async def crear_una_pregunta(pregunta: QuestionCreate, user=Depends(get_current_
     return {"id": pregunta_id}
 
 #Endpoint para generar las preguntas con opciones
+<<<<<<< HEAD
+@router.post("/generar-con-ia/", response_model=List[QuestionGenerated])
+=======
 @router.post("/generar-con-ia/", response_model=List[QuestionCreate])
+>>>>>>> 96bd197fb810fc04029f0363761fccd31aa3470a
 async def generar_preguntas_desde_ia(
     tema: str = Query(..., description="Tema sobre el cual generar preguntas"),
     cantidad: int = Query(5, ge=1, le=10)

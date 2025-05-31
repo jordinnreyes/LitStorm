@@ -49,9 +49,15 @@ services:
     ports:
       - "8002:8000"
     environment:
+<<<<<<< HEAD
+      - MONGO_URI=mongodb://evaluaciones_mongo_db:27017
+      - USUARIOS_SERVICE_URL=http://usuarios:8000
+      - CURSOS_SERVICE_URL=http://cursos:8000
+=======
       - MONGO_URI=${MONGO_URI}
       - USUARIOS_SERVICE_URL=http://usuarios:8000
       - CURSOS_SERVICE_URL=http://cursos:8001
+>>>>>>> 96bd197fb810fc04029f0363761fccd31aa3470a
       - PYTHONPATH=/app/src
     depends_on:
       evaluaciones_mongo_db:
