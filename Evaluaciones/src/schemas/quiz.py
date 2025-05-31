@@ -7,7 +7,6 @@ from bson import ObjectId
 class QuizBase(BaseModel):
     titulo: str
     tema: str
-<<<<<<< HEAD
     preguntas: List[str]
     fecha_inicio: datetime
     fecha_fin: datetime
@@ -19,22 +18,6 @@ class QuizCreate(QuizBase):
 
 class QuizInDB(QuizBase):
     creado_por: str
-=======
-    preguntas: List[str]  
-    creado_por: str  
-    fecha_inicio: datetime
-    fecha_fin: datetime
-    estado: str = "programado"
-    curso_id: str  # <- nuevo campo
-  
-
-
-class QuizCreate(QuizBase):
-    pass
-
-
-class QuizInDB(QuizBase):
->>>>>>> 96bd197fb810fc04029f0363761fccd31aa3470a
     id: str = Field(default_factory=lambda: str(ObjectId()))
     creado_en: datetime = Field(default_factory=datetime.now)
 

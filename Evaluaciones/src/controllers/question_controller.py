@@ -1,9 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends
-<<<<<<< HEAD
 from src.schemas.question import QuestionCreate, QuestionResponse, QuestionGenerated
-=======
-from src.schemas.question import QuestionCreate, QuestionResponse
->>>>>>> 96bd197fb810fc04029f0363761fccd31aa3470a
 from src.services.question_service import crear_pregunta
 from fastapi import Query
 from src.services.ia_service import generar_preguntas_con_ia
@@ -15,7 +11,7 @@ from src.services.auth import get_current_user, verificar_curso_existe
 
 router = APIRouter(prefix="/preguntas", tags=["Preguntas"])
 
-#Endpoint para crear una pregunta manualmente
+#Endpoint para que el profesor cree una nueva pregunta manualmente (funciona)
 @router.post("/", response_model=dict)
 async def crear_una_pregunta(pregunta: QuestionCreate, user=Depends(get_current_user)):
     if user["rol"] != "profesor":
@@ -28,12 +24,8 @@ async def crear_una_pregunta(pregunta: QuestionCreate, user=Depends(get_current_
         raise HTTPException(status_code=500, detail="No se pudo crear la pregunta.")
     return {"id": pregunta_id}
 
-#Endpoint para generar las preguntas con opciones
-<<<<<<< HEAD
+#Con este endpoint la profesora genera las pregutnas (funciona)
 @router.post("/generar-con-ia/", response_model=List[QuestionGenerated])
-=======
-@router.post("/generar-con-ia/", response_model=List[QuestionCreate])
->>>>>>> 96bd197fb810fc04029f0363761fccd31aa3470a
 async def generar_preguntas_desde_ia(
     tema: str = Query(..., description="Tema sobre el cual generar preguntas"),
     cantidad: int = Query(5, ge=1, le=10)
@@ -43,7 +35,7 @@ async def generar_preguntas_desde_ia(
         raise HTTPException(status_code=500, detail="Error al generar preguntas.")
     return preguntas
 
-#Endpoint para guardar las preguntas seleccionadas
+#Endpoint para guardar en la base de datos las preguntas generadas por IA que el profesor seleccionó (funciona)
 @router.post("/guardar-seleccionadas/", response_model=List[str])
 async def guardar_preguntas_seleccionadas(
     preguntas: List[QuestionCreate],

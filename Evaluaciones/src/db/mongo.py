@@ -10,3 +10,4 @@ db = client[MONGO_DB_NAME]
 # Acceso directo a colecciones
 preguntas_collection = db["preguntas"]
 quizzes_collection = db["quizzes"]
+respuestas_collection = db["respuestas"]
