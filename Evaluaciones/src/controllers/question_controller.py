@@ -7,7 +7,7 @@ from typing import List
 from src.models.question import get_question_document
 from src.db.mongo import preguntas_collection
 from src.services.auth import get_current_user, verificar_curso_existe
-
+from bson import ObjectId
 
 router = APIRouter(prefix="/preguntas", tags=["Preguntas"])
 
@@ -64,3 +64,15 @@ async def guardar_preguntas_seleccionadas(
         print(f"❌ Error guardando preguntas seleccionadas: {e}")
         raise HTTPException(status_code=500, detail="No se pudieron guardar las preguntas seleccionadas.")
 
+# Obtener preguntas por tema
+@router.get("/", response_model=List[QuestionResponse])
+async def obtener_preguntas_por_tema(tema: str, user=Depends(get_current_user)):
+    if user["rol"] != "profesor":
+        raise HTTPException(status_code=403, detail="Solo los profesores pueden ver las preguntas")
+    
+    preguntas_cursor = preguntas_collection.find({"tema": tema})
+    preguntas = []
+    async for doc in preguntas_cursor:
+        doc["id"] = str(doc["_id"])
+        preguntas.append(doc)
+    return preguntas

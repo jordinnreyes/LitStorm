@@ -6,7 +6,6 @@ from ..services.auth import get_current_user
 from ..db.database import get_db
 from ..services.course import crear_curso_service
 
-
 router = APIRouter()
 
 @router.post("/", response_model=CursoOut)

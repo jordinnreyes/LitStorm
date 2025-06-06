@@ -83,5 +83,3 @@ async def listar_quizzes_activos_programados(curso_id: int, user=Depends(get_cur
         raise HTTPException(status_code=404, detail="No hay quizzes activos o programados para este curso.")
 
     return quizzes
-
-

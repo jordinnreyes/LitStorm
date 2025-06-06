@@ -9,7 +9,4 @@ class Course(Base):
     descripcion = Column(String)
     profesor_id = Column(Integer, nullable=False)  # el profesor se une automaticamente
     codigo_acceso = Column(String, unique=True, nullable=False)  # Clave para que los alumnos entren
-    
-
     inscripciones = relationship("Inscripcion", back_populates="curso")
-

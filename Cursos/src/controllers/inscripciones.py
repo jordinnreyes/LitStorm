@@ -7,7 +7,6 @@ from ..schemas.inscripcion import InscripcionOut
 
 router = APIRouter()
 
-
 @router.post("/inscribirse/{codigo}")
 def inscribirse(
     codigo: str,
@@ -15,7 +14,6 @@ def inscribirse(
     user=Depends(get_current_user)
 ):
     return inscribirse_service(codigo, user, db)
-
 
 @router.get("/mis-inscripciones", response_model=list[InscripcionOut])
 def listar_cursos_inscritos(db: Session = Depends(get_db), user=Depends(get_current_user)):
