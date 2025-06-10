@@ -10,6 +10,7 @@ from ..config.settings import settings
 from fastapi.security import OAuth2PasswordBearer
 from jose import jwt
 from ..models.role import Role
+from ..models.user import User
 
 
 
@@ -43,6 +44,9 @@ async def login(
     login_data: LoginRequest,  
     db: Session = Depends(get_db)
 ):
+    user = db.query(User).filter(User.email == login_data.username).first()
+    print("¿Usuario existe?", user is not None, "->", user.email if user else "NO")
+
     user = authenticate_user(db, login_data.username, login_data.password)
     if not user:
         raise HTTPException(

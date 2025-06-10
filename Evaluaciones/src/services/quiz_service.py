@@ -1,6 +1,6 @@
 from bson import ObjectId
 from ..models.quiz import get_quiz_document
-from ..db.mongo import quizzes_collection, preguntas_collection
+from ..db.mongo import quizzes_collection, preguntas_collection, respuestas_collection
 from ..schemas.quiz import QuizCreate
 from ..schemas.respuesta import ProgresoQuiz, ProgresoPregunta
 from typing import Optional, List, Dict, Tuple
@@ -32,22 +32,11 @@ async def crear_quiz(quiz_data: QuizCreate, creado_por: str) -> Optional[str]:
 
 #Endpoint para tener 1 a 1 las preguntas del quiz
 async def obtener_quiz_para_alumno(quiz_id: str, alumno_id: str) -> Dict:
-    """
-    Obtiene un quiz con la pregunta actual para mostrar al alumno.
-    No incluye las respuestas correctas.
-    """
     try:
         # Obtener el quiz
         quiz = await quizzes_collection.find_one({"_id": ObjectId(quiz_id)})
         if not quiz:
             raise ValueError("Quiz no encontrado")
-
-        # Verificar si el quiz está activo
-        ahora = datetime.now()
-        if ahora < quiz["fecha_inicio"]:
-            raise ValueError("El quiz aún no ha comenzado")
-        if ahora > quiz["fecha_fin"]:
-            raise ValueError("El quiz ya ha terminado")
 
         # Obtener o crear el progreso del alumno
         progreso = await obtener_o_crear_progreso(quiz_id, alumno_id, len(quiz["preguntas"]))
@@ -144,4 +133,114 @@ async def obtener_quizzes_activos_programados(curso_id: int) -> List[dict]:
 
     return quizzes
 
+async def obtener_preguntas_quiz(quiz_id: str) -> List[Dict]:
+    """
+    Obtiene todas las preguntas de un quiz incluyendo las respuestas correctas.
+    """
+    try:
+        # Obtener el quiz
+        quiz = await quizzes_collection.find_one({"_id": ObjectId(quiz_id)})
+        if not quiz:
+            raise ValueError("Quiz no encontrado")
+
+        # Obtener todas las preguntas del quiz
+        preguntas_ids = [ObjectId(pid) for pid in quiz["preguntas"]]
+        preguntas = []
+        
+        # Obtener cada pregunta incluyendo la respuesta correcta
+        for pregunta_id in preguntas_ids:
+            pregunta = await preguntas_collection.find_one({"_id": pregunta_id})
+            if pregunta:
+                preguntas.append({
+                    "id": str(pregunta["_id"]),
+                    "texto": pregunta["texto"],
+                    "opciones": pregunta["opciones"],
+                    "tema": pregunta.get("tema", ""),
+                    "explicacion": pregunta.get("explicacion", ""),
+                    "respuesta_correcta": pregunta.get("respuesta_correcta", None)
+                })
+        
+        if not preguntas:
+            raise ValueError("No se encontraron preguntas para este quiz")
+            
+        return preguntas
+        
+    except ValueError as e:
+        raise e
+    except Exception as e:
+        print(f"Error obteniendo preguntas del quiz: {e}")
+        raise Exception("Error interno obteniendo las preguntas del quiz")
+
+async def obtener_respuestas_quiz(quiz_id: str) -> Dict:
+    """
+    Obtiene todas las respuestas de un quiz.
+    Muestra todas las respuestas sin filtrar por rol.
+    """
+    try:
+        # Verificar que el quiz existe
+        quiz = await quizzes_collection.find_one({"_id": ObjectId(quiz_id)})
+        if not quiz:
+            raise ValueError("Quiz no encontrado")
+
+        # Obtener todas las respuestas
+        respuestas = await respuestas_collection.find({"quiz_id": quiz_id}).to_list(None)
+        
+        # Obtener detalles de las preguntas para cada respuesta
+        respuestas_detalladas = []
+        
+        for respuesta in respuestas:
+            # Obtener detalles de las preguntas
+            preguntas = []
+            for detalle in respuesta.get("detalle", []):
+                pregunta = await preguntas_collection.find_one({"_id": ObjectId(detalle["pregunta_id"])})
+                if pregunta:
+                    preguntas.append({
+                        "pregunta_id": str(pregunta["_id"]),
+                        "texto": pregunta["texto"],
+                        "opciones": pregunta["opciones"],
+                        "respuesta_usuario": detalle.get("respuesta_usuario", ""),
+                        "correcta": detalle.get("correcta", False),
+                        "explicacion": detalle.get("explicacion", "")
+                    })
+            
+            respuestas_detalladas.append({
+                "alumno_id": respuesta["alumno_id"],
+                "preguntas": preguntas,
+                "puntuacion": respuesta.get("puntuacion", 0),
+                "total": respuesta.get("total", 0),
+                "fecha": respuesta.get("fecha", datetime.now())
+            })
+        
+        return {
+            "quiz_id": str(quiz["_id"]),
+            "titulo": quiz["titulo"],
+            "respuestas": respuestas_detalladas
+        }
+            
+    except ValueError as e:
+        raise e
+    except Exception as e:
+        print(f"Error obteniendo respuestas del quiz: {e}")
+        raise Exception("Error interno obteniendo las respuestas del quiz")
+
+
+async def obtener_temas_quizzes() -> List[str]:
+    """
+    Obtiene una lista de todos los temas únicos de los quizzes existentes.
     
+    Returns:
+        List[str]: Lista de temas únicos ordenados alfabéticamente
+    """
+    try:
+        # Usamos distinct para obtener valores únicos del campo 'tema'
+        temas = await quizzes_collection.distinct("tema")
+        
+        # Filtramos valores nulos o vacíos y ordenamos alfabéticamente
+        temas_filtrados = sorted([t for t in temas if t and t.strip()])
+        
+        return temas_filtrados
+        
+    except Exception as e:
+        print(f"Error obteniendo temas de quizzes: {e}")
+        raise Exception("Error interno obteniendo los temas de los quizzes")
+

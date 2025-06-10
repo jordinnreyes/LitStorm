@@ -5,10 +5,15 @@ from src.services.quiz_service import (
     crear_quiz, 
     obtener_quiz_para_alumno,
     obtener_quizzes_activos_programados,
-    guardar_respuesta_pregunta
+    guardar_respuesta_pregunta,
+    obtener_preguntas_quiz,
+    obtener_respuestas_quiz,
+    obtener_temas_quizzes
 )
 from src.services.auth import get_current_user, verificar_curso_existe
 from typing import List, Dict
+from bson import ObjectId
+from src.db.mongo import quizzes_collection
 
 
 router = APIRouter(prefix="/quizzes", tags=["Quizzes"])
@@ -45,18 +50,18 @@ async def obtener_pregunta_quiz(quiz_id: str, user=Depends(get_current_user)):
 async def guardar_respuesta(
     quiz_id: str, 
     respuesta: RespuestaEnProgreso,
-    user=Depends(get_current_user)
+    # user=Depends(get_current_user)
 ):
-    if user["rol"] != "alumno":
-        raise HTTPException(status_code=403, detail="Solo los alumnos pueden responder quizzes")
+    # if user["rol"] != "alumno":
+    #     raise HTTPException(status_code=403, detail="Solo los alumnos pueden responder quizzes")
     
-    if user["id"] != respuesta.alumno_id:
-        raise HTTPException(status_code=403, detail="No puedes responder por otro alumno")
+    # if user["id"] != respuesta.alumno_id:
+    #     raise HTTPException(status_code=403, detail="No puedes responder por otro alumno")
 
     try:
         progreso = await guardar_respuesta_pregunta(
             quiz_id=quiz_id,
-            alumno_id=user["id"],
+            alumno_id=respuesta.alumno_id,
             pregunta_id=str(respuesta.pregunta_actual),
             respuesta=respuesta.respuesta
         )
@@ -83,3 +88,58 @@ async def listar_quizzes_activos_programados(curso_id: int, user=Depends(get_cur
         raise HTTPException(status_code=404, detail="No hay quizzes activos o programados para este curso.")
 
     return quizzes
+
+#Endpoint para obtener todas las preguntas de un quiz
+@router.get("/{quiz_id}/preguntas", response_model=List[Dict])
+async def obtener_preguntas_quiz_completo(
+    quiz_id: str, 
+    user=Depends(get_current_user)
+):
+    try:
+        # Primero obtener el quiz para verificar que existe y el usuario tiene acceso
+        quiz = await quizzes_collection.find_one({"_id": ObjectId(quiz_id)})
+        if not quiz:
+            raise HTTPException(status_code=404, detail="Quiz no encontrado")
+            
+        # Verificar que el usuario esté inscrito en el curso del quiz
+        # Esto es un ejemplo, necesitarías implementar la lógica de verificación
+        # await verificar_acceso_al_curso(user["id"], quiz["curso_id"])
+        
+        preguntas = await obtener_preguntas_quiz(quiz_id)
+        return preguntas
+        
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        print(f"Error obteniendo preguntas del quiz: {e}")
+        raise HTTPException(status_code=500, detail="Error al obtener las preguntas del quiz")
+
+#Endpoint para obtener respuestas de un quiz
+@router.get("/{quiz_id}/respuestas", response_model=Dict)
+async def ver_respuestas_quiz(quiz_id: str):
+    """
+    Obtiene todas las respuestas de un quiz.
+    No requiere autenticación y muestra todas las respuestas.
+    """
+    try:
+        respuestas = await obtener_respuestas_quiz(quiz_id)
+        return respuestas
+        
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        print(f"Error obteniendo respuestas: {e}")
+        raise HTTPException(status_code=500, detail="Error al obtener las respuestas del quiz")
+
+
+@router.get("/temas/", response_model=List[str])
+async def listar_temas_quizzes():
+    """
+    Obtiene una lista de todos los temas únicos de los quizzes existentes.
+    Útil para mostrar un listado de temas disponibles al crear o filtrar quizzes.
+    """
+    try:
+        return await obtener_temas_quizzes()
+    except Exception as e:
+        print(f"Error listando temas: {e}")
+        raise HTTPException(status_code=500, detail="Error al obtener la lista de temas")

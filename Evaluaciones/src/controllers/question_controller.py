@@ -1,7 +1,11 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Query, Body
+from pydantic import BaseModel
 from src.schemas.question import QuestionCreate, QuestionResponse, QuestionGenerated
-from src.services.question_service import crear_pregunta
-from fastapi import Query
+from src.services.question_service import (
+    crear_pregunta, 
+    obtener_preguntas_por_tema,
+    obtener_todas_las_preguntas
+)
 from src.services.ia_service import generar_preguntas_con_ia
 from typing import List
 from src.models.question import get_question_document
@@ -10,6 +14,15 @@ from src.services.auth import get_current_user, verificar_curso_existe
 from bson import ObjectId
 
 router = APIRouter(prefix="/preguntas", tags=["Preguntas"])
+
+
+@router.get("/", response_model=List[QuestionResponse])
+async def listar_todas_las_preguntas():
+    try:
+        return await obtener_todas_las_preguntas()
+    except Exception as e:
+        print(f"Error obteniendo todas las preguntas: {e}")
+        raise HTTPException(status_code=500, detail="Error al obtener las preguntas")
 
 #Endpoint para que el profesor cree una nueva pregunta manualmente (funciona)
 @router.post("/", response_model=dict)
@@ -64,15 +77,31 @@ async def guardar_preguntas_seleccionadas(
         print(f"❌ Error guardando preguntas seleccionadas: {e}")
         raise HTTPException(status_code=500, detail="No se pudieron guardar las preguntas seleccionadas.")
 
-# Obtener preguntas por tema
-@router.get("/", response_model=List[QuestionResponse])
-async def obtener_preguntas_por_tema(tema: str, user=Depends(get_current_user)):
-    if user["rol"] != "profesor":
-        raise HTTPException(status_code=403, detail="Solo los profesores pueden ver las preguntas")
-    
-    preguntas_cursor = preguntas_collection.find({"tema": tema})
-    preguntas = []
-    async for doc in preguntas_cursor:
-        doc["id"] = str(doc["_id"])
-        preguntas.append(doc)
-    return preguntas
+class TemaRequest(BaseModel):
+    tema: str
+
+@router.post("/tema/", response_model=List[QuestionResponse])
+async def listar_preguntas_por_tema(tema_request: TemaRequest):
+    try:
+        tema = tema_request.tema
+        if not tema or not tema.strip():
+            raise HTTPException(status_code=400, detail="El tema no puede estar vacío")
+            
+        preguntas = await obtener_preguntas_por_tema(tema.strip())
+        
+        if not preguntas:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No se encontraron preguntas para el tema: {tema}"
+            )
+            
+        return preguntas
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error en listar_preguntas_por_tema: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="Error al obtener las preguntas"
+        )

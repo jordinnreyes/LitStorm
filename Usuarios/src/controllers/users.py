@@ -6,8 +6,11 @@ from ..db.database import get_db
 from ..schemas.user import UserResponse
 from ..utils.dependencies import get_authenticated_user
 from ..models.role import Role
+from ..schemas.user import RoleName
 
 router = APIRouter(prefix="/users", tags=["users"])
+print(">>> users.py cargado correctamente")
+
 
 @router.get("/me", response_model=UserResponse)
 async def read_current_user(
@@ -25,4 +28,18 @@ async def read_current_user(
         apellido=current_user.apellido,
         role=role_name
     )
+
+@router.get("/listar", response_model=list[UserResponse])
+async def read_users(
+    db: Session = Depends(get_db)
+):
+    users = db.query(User).all()
+    
+    return [UserResponse(
+        id=user.id,
+        email=user.email,
+        nombre=user.nombre,
+        apellido=user.apellido,
+        role=RoleName(user.role.name)
+    ) for user in users]
 
