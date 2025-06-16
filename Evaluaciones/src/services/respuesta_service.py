@@ -4,20 +4,22 @@ from src.services.ia_service import generar_feedback_ia
 from datetime import datetime
 from bson import ObjectId
 from typing import List, Dict
+from bson.errors import InvalidId
+from fastapi import HTTPException
 
 #Evalua la respuesta
-async def evaluar_respuesta(respuesta_data: RespuestaAlumno) -> ResultadoQuiz:
+async def evaluar_respuesta(respuesta_data: RespuestaQuizCompleto) -> ResultadoQuiz:
     # Verificar si el quiz existe y está activo
     quiz = await quizzes_collection.find_one({"_id": ObjectId(respuesta_data.quiz_id)})
     if not quiz:
-        raise ValueError("Quiz no encontrado")
+        raise HTTPException(status_code=404, detail="Quiz no encontrado")
 
     # Verificar si el quiz está activo
     ahora = datetime.now()
     if ahora < quiz["fecha_inicio"]:
-        raise ValueError("El quiz aún no ha comenzado")
+        raise HTTPException(status_code=400, detail="El quiz aún no ha comenzado")
     if ahora > quiz["fecha_fin"]:
-        raise ValueError("El quiz ya ha terminado")
+        raise HTTPException(status_code=400, detail="El quiz ya ha terminado")
 
     # Verificar si el alumno ya respondió este quiz
     respuesta_previa = await respuestas_collection.find_one({
@@ -25,22 +27,34 @@ async def evaluar_respuesta(respuesta_data: RespuestaAlumno) -> ResultadoQuiz:
         "alumno_id": respuesta_data.alumno_id
     })
     if respuesta_previa:
-        raise ValueError("Ya has respondido este quiz anteriormente")
+        return ResultadoQuiz(**respuesta_previa)
 
     preguntas_ids = quiz["preguntas"]
     preguntas_cursor = preguntas_collection.find({"_id": {"$in": preguntas_ids}})
     preguntas = await preguntas_cursor.to_list(length=len(preguntas_ids))
 
     if len(respuesta_data.respuestas) != len(preguntas):
-        raise ValueError(f"El número de respuestas ({len(respuesta_data.respuestas)}) no coincide con el número de preguntas ({len(preguntas)})")
-
+        raise HTTPException(
+            status_code=400,
+            detail=f"El número de respuestas ({len(respuesta_data.respuestas)}) no coincide con el número de preguntas ({len(preguntas)})"
+        )
     correctas = 0
     detalle = []
 
-    for i, pregunta in enumerate(preguntas):
-        seleccionada = respuesta_data.respuestas[i]
+    # Crear un diccionario con las respuestas del alumno: {pregunta_id: respuesta}
+    respuesta_map: Dict[str, int] = {
+        r.pregunta_id: r.respuesta for r in respuesta_data.respuestas
+    }
+
+    for pregunta in preguntas:
+        pregunta_id = str(pregunta["_id"])
+        if pregunta_id not in respuesta_map:
+            raise HTTPException(status_code=400, detail=f"No se encontró respuesta para la pregunta {pregunta_id}")
+        
+        seleccionada = respuesta_map[pregunta_id]
+
         if seleccionada < 0 or seleccionada >= len(pregunta["opciones"]):
-            raise ValueError(f"Respuesta inválida para la pregunta {i + 1}")
+            raise HTTPException(status_code=400, detail=f"Respuesta inválida para la pregunta con ID {pregunta_id}")
 
         es_correcta = seleccionada == pregunta["respuesta_correcta"]
         if es_correcta:
@@ -56,13 +70,16 @@ async def evaluar_respuesta(respuesta_data: RespuestaAlumno) -> ResultadoQuiz:
             )
 
         detalle.append(ResultadoPregunta(
+            pregunta_id=pregunta_id,
             texto=pregunta["texto"],
             correcta=es_correcta,
-            respuesta_usuario=pregunta["opciones"][seleccionada],
-            respuesta_correcta=pregunta["opciones"][pregunta["respuesta_correcta"]],
+            respuesta_usuario=seleccionada,
+            respuesta_correcta=pregunta["respuesta_correcta"],
+            opciones=pregunta["opciones"],
             explicacion=pregunta["explicacion"],
             feedback_ia=feedback_ia
         ))
+
 
     resultado = ResultadoQuiz(
         quiz_id=respuesta_data.quiz_id,
@@ -73,7 +90,10 @@ async def evaluar_respuesta(respuesta_data: RespuestaAlumno) -> ResultadoQuiz:
         fecha=datetime.utcnow()
     )
 
+
     await respuestas_collection.insert_one(resultado.dict())
+    print("📝 Documento guardado:", resultado.dict())
+
 
     return resultado
 
@@ -193,7 +213,7 @@ async def guardar_respuestas_quiz(respuesta_data: RespuestaQuizCompleto) -> Resu
         # Guardar el resultado
         resultado = ResultadoQuiz(
             quiz_id=respuesta_data.quiz_id,
-            alumno_id=respuesta_data.alumno_id,
+            alumno_id=str(respuesta_data.alumno_id),  # 👈 fuerza a string
             puntuacion=correctas,
             total=len(preguntas),
             detalle=detalle,
@@ -211,3 +231,64 @@ async def guardar_respuestas_quiz(respuesta_data: RespuestaQuizCompleto) -> Resu
         import traceback
         traceback.print_exc()
         raise
+
+
+
+
+async def obtener_respuestas_quiz_por_alumno(quiz_id: str, alumno_id: str) -> Dict:
+    """
+    Obtiene las respuestas de un quiz para un alumno específico.
+    """
+    try:
+        print(f"Intentando convertir quiz_id: {quiz_id}")    
+        # Verificar que el quiz existe
+        try:
+            print(f"Intentando convertir quiz_id: {quiz_id}")
+            quiz = await quizzes_collection.find_one({"_id": ObjectId(quiz_id)})
+        except InvalidId:
+            print("❌ quiz_id no es un ObjectId válido")
+            raise ValueError("El quiz_id proporcionado no es válido")
+
+        if not quiz:
+            raise ValueError("Quiz no encontrado")
+
+        # Buscar solo la respuesta de ese alumno
+        respuesta = await respuestas_collection.find_one({
+            "$or": [
+                {"quiz_id": quiz_id, "alumno_id": alumno_id},
+                {"quiz_id": ObjectId(quiz_id), "alumno_id": alumno_id}
+            ]
+        })
+
+        if not respuesta:
+            raise ValueError("No se encontraron respuestas para este alumno")
+
+        # Obtener detalles de las preguntas
+        preguntas = []
+        for detalle in respuesta.get("detalle", []):
+            pregunta = await preguntas_collection.find_one({"_id": ObjectId(detalle["pregunta_id"])})
+            if pregunta:
+                preguntas.append({
+                    "pregunta_id": str(pregunta["_id"]),
+                    "texto": pregunta["texto"],
+                    "opciones": pregunta["opciones"],
+                    "respuesta_usuario": detalle.get("respuesta_usuario", ""),
+                    "correcta": detalle.get("correcta", False),
+                    "explicacion": detalle.get("explicacion", "")
+                })
+
+        return {
+            "quiz_id": str(quiz["_id"]),
+            "titulo": quiz["titulo"],
+            "alumno_id": alumno_id,
+            "preguntas": preguntas,
+            "puntuacion": respuesta.get("puntuacion", 0),
+            "total": respuesta.get("total", 0),
+            "fecha": respuesta.get("fecha", datetime.now())
+        }
+
+    except ValueError as e:
+        raise e
+    except Exception as e:
+        print(f"Error obteniendo respuestas del alumno: {e}")
+        raise Exception("Error interno al obtener respuestas del alumno")
