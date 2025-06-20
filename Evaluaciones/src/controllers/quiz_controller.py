@@ -143,3 +143,30 @@ async def listar_temas_quizzes():
     except Exception as e:
         print(f"Error listando temas: {e}")
         raise HTTPException(status_code=500, detail="Error al obtener la lista de temas")
+
+
+
+
+
+
+# Endpoint para que el profesor obtenga todos los quizzes de un curso (sin filtrar por estado)
+@router.get("/por_curso/{curso_id}", response_model=List[QuizResumen])
+async def obtener_quizzes_por_curso(curso_id: int, user=Depends(get_current_user)):
+    if user["rol"] != "profesor":
+        raise HTTPException(status_code=403, detail="Solo los profesores pueden ver los quizzes de un curso")
+    
+    verificar_curso_existe(curso_id)
+
+    quizzes_cursor = quizzes_collection.find({"curso_id": curso_id})
+    quizzes = await quizzes_cursor.to_list(length=None)
+
+    return [
+        QuizResumen(
+            id=str(q["_id"]),
+            titulo=q["titulo"],
+            tema=q["tema"],
+            fecha_inicio=q["fecha_inicio"],
+            fecha_fin=q["fecha_fin"],
+            estado=q["estado"]
+        ) for q in quizzes
+    ]
