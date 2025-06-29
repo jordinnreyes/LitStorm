@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from src.controllers import question_controller, quiz_controller
 from src.controllers import respuesta_controller
+from src.controllers import chatbot
 
 app = FastAPI(
     title="Microservicio de Evaluciones",
@@ -10,3 +11,4 @@ app = FastAPI(
 app.include_router(question_controller.router)
 app.include_router(quiz_controller.router)
 app.include_router(respuesta_controller.router)
+app.include_router(chatbot.router)
